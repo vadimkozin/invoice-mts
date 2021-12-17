@@ -20,6 +20,7 @@ const opts = minimist(process.argv.slice(2), {
     invoice: 'i',
     account: 't',
     notice: 'n',
+    detail: 'd',
   },
 })
 
@@ -58,11 +59,6 @@ async function mainBase(period) {
   const persons = await base.getPersons(personsId)
   const servicesf = await base.getServicesFiz(period)
 
-  // console.log(bookf)
-  // console.log(personsId)
-  // console.log(persons)
-  // console.log(servicesFiz)
-
   // объекты с данными отображаем в csv-файлы
   const items = [
     [book, 'book.csv'],
@@ -80,7 +76,7 @@ async function mainBase(period) {
     log(`write ${rows} rows in file: ${path.basename(filename)}`)
   })
 
-  const doc = new Document({ period, book, customers, services, bookf, persons, servicesf, pathResult })
+  const doc = new Document({ period, book, customers, services, bookf, persons, servicesf, pathSource, pathResult })
 
   if (opts.account) {
     const result = await doc.createAccounts()
@@ -100,6 +96,11 @@ async function mainBase(period) {
   if (opts.notice) {
     const result = await doc.createNotices()
     resume('notices', result)
+  }
+
+  if (opts.detail) {
+    const result = await doc.createDetails()
+    resume('detail', result)
   }
 }
 

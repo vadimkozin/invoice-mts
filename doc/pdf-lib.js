@@ -122,6 +122,7 @@ const getOffsetToCenterBlockInHeight = ({ doc, str, height, fontSize = 10 }) => 
 
 // печатает текст с указанием названия фонта и его размера (если нужно)
 const printText = ({ doc, text, x, y, fontSize = 10, fontName = '' }) => {
+  if (!text) return
   doc.setFontSize(fontSize)
   if (fontName) {
     doc.setFont(fontName)
@@ -130,10 +131,20 @@ const printText = ({ doc, text, x, y, fontSize = 10, fontName = '' }) => {
 }
 
 // печать линии на заданную ширину
-const printLine = ({ doc, x, y, width, widthLine = 0.5 }) => {
+const printLine__ = ({ doc, x, y, width, widthLine = 0.5 }) => {
   doc.setLineWidth(widthLine)
   doc.line(x, y, x + width, y)
 }
+
+const printLine = ({ doc, x, y, width, widthLine = 0.5, color = [0, 0, 0] }) => {
+  doc.setLineWidth(widthLine)
+  if (color && Array.isArray(color)) {
+    doc.setDrawColor(...color)
+  }
+  doc.line(x, y, x + width, y)
+  doc.setDrawColor(0, 0, 0)
+}
+
 // печать линии на заданную высоту
 const printLineHeight = ({ doc, x, y, height, widthLine = 0.5 }) => {
   doc.setLineWidth(widthLine)
