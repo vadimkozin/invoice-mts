@@ -1,7 +1,7 @@
 import { EventEmitter } from 'node:events'
 
 export class Pager extends EventEmitter {
-  constructor({ heightPage = 280, startY = 0, stepY = 4 }) {
+  constructor({ heightPage = 250, startY = 0, stepY = 4 }) {
     super()
     this.heightPage = heightPage // размер по Y для перехода на новую страницу
     this.startY = startY // точка отсчёта по Y

@@ -21,6 +21,7 @@ const opts = minimist(process.argv.slice(2), {
     account: 't',
     notice: 'n',
     detail: 'd',
+    all: 'x',
   },
 })
 
@@ -78,29 +79,31 @@ async function mainBase(period) {
 
   const doc = new Document({ period, book, customers, services, bookf, persons, servicesf, pathSource, pathResult })
 
-  if (opts.account) {
+  if (opts.account || opts.all) {
     const result = await doc.createAccounts()
     resume('accounts', result)
   }
 
-  if (opts.act) {
+  if (opts.act || opts.all) {
     const result = await doc.createActs()
     resume('acts', result)
   }
 
-  if (opts.invoice) {
+  if (opts.invoice || opts.all) {
     const result = await doc.createInvoices()
     resume('invoices', result)
   }
 
-  if (opts.notice) {
+  if (opts.notice || opts.all) {
     const result = await doc.createNotices()
     resume('notices', result)
   }
 
-  if (opts.detail) {
-    const result = await doc.createDetails()
-    resume('detail', result)
+  if (opts.detail || opts.all) {
+    let result = await doc.createDetailsUr()
+    resume('detail ur', result)
+    result = await doc.createDetailsFiz()
+    resume('detail fiz', result)
   }
 }
 

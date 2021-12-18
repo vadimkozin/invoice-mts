@@ -27,17 +27,18 @@ const ICall = {
  * @param {array} data - массив объектов с данными (ICall - см. types.js)
  * @param {string} nameFile - имя файла для результата
  * @param {string} period - период (2021_12)
+ * @param {string} cusType - тип клиента (u|f)
  * @param {string} custName - имя клиента
- * @param {number} custId - код клиента
+ * @param {number} custId - код клиента (custonerId for cusType=u; personalId for cusType=f)
+ * @param {string} custAddress - адрес клиента (need only for cusType=f)
  * @return {*} создаёт файл `nameFile`.pdf
  */
-export const createCalls = ({ data, nameFile, period, custName, custId }) => {
+export const createCalls = ({ data, nameFile, period, custType, custName, custId, custAddress }) => {
   const [xb, yb] = [15, 15] // точка отсчёта
   const tab = {
     titles: { MG: 'междугородняя/международная связь', VZ: 'внутризоновая связь' },
     width: 154, // ширина
     height: 270, // высота
-    // dy: 5, // смещение между строками по Y
     dy2: 8, // смещение для разделов
     // поля:
     abonent: { name: 'Абонент', w: 20, x: 0, isShort: true },
@@ -114,7 +115,7 @@ export const createCalls = ({ data, nameFile, period, custName, custId }) => {
   })
 
   /// (1) Header
-  const [header, heightHeader] = getHeader({ doc, period, custName, custId, fontSize: 10 })
+  const [header, heightHeader] = getHeader({ doc, period, custType, custName, custId, custAddress, fontSize: 10 })
   pdf.printText({ doc, text: header, x: xb, y: pager.y, fontSize: 10 })
 
   pager.next(heightHeader + 7)
@@ -156,7 +157,7 @@ export const createCalls = ({ data, nameFile, period, custName, custId }) => {
       doc.setFont(regular)
     }
 
-    // инфо по вызову
+    // инфо по одному вызову
     printOneCall({ doc, data: d, tab, fields: tab.fields, x: xb, y: pager.y })
     pager.next()
     group.addTraffic(d)
@@ -188,15 +189,22 @@ export const createCalls = ({ data, nameFile, period, custName, custId }) => {
 
 // -----------------------------------------------------------------
 /// (4) функции
-const getHeader = ({ doc, period, custName, custId, fontSize }) => {
+const getHeader = ({ doc, period, custType, custName, custId, custAddress, fontSize }) => {
   const header = []
   const [year, month] = period.split('_') // 2021_12
   let monthText = constant.MonthDigitToNameMap[Number(month)]
   monthText = monthText.slice(0, 1).toUpperCase() + monthText.slice(1)
 
-  header.push(`${custName} (id=${custId})`)
+  let customer = `${custName} (id=${custId})`
+  let ndsAbout = `(стоимость без НДС)`
+
+  if (custType === 'f') {
+    customer += `, ${custAddress}`
+    ndsAbout = ''
+  }
+  header.push(`${customer}`)
   header.push(`Расшифровка за цифровой канал связи(соединения по межгороду)`)
-  header.push(`${monthText} ${year}г (стоимость без НДС)`)
+  header.push(`${monthText} ${year}г ${ndsAbout}`)
 
   const height = pdf.getHeightInMm({ doc, rows: 3, fontSize })
 
@@ -205,20 +213,29 @@ const getHeader = ({ doc, period, custName, custId, fontSize }) => {
 
 const printResumeAbonent = ({ doc, tab, group, x, y }) => {
   const fontSize = 8
-  const abonentTotal = `тел: ${createShort(group.abonent.current)}, всего разговоров: ${group.abonent.calls}`
-  pdf.printText({ doc, text: abonentTotal, x, y, fontSize })
-  pdf.printLeft({ doc, str: String(group.abonent.min), x: x + tab.min.x + tab.min.w, y, fontSize })
-  pdf.printLeft({ doc, str: getTextCost(group.abonent.sum), x: x + tab.sum.x + tab.sum.w, y, fontSize })
+  // const abonentTotal = `тел: ${createShort(group.abonent.current)}, всего разговоров: ${group.abonent.calls}`
+  // pdf.printText({ doc, text: abonentTotal, x, y, fontSize })
+  const [dt, dd] = [2, 1]
+  pdf.printLine({ doc, x: x + tab.min.x, y: y - dt, width: 30, widthLine: 0.1, color: [124, 124, 124] })
+  pdf.printLeft({ doc, str: String(group.abonent.min), x: x + tab.min.x + tab.min.w, y: y + dd, fontSize })
+  pdf.printLeft({ doc, str: getTextCost(group.abonent.sum), x: x + tab.sum.x + tab.sum.w, y: y + dd, fontSize })
 
   group.resetAbonent()
 }
 
-const printResumeTraffic = ({ doc, tab, group, x, y }) => {
+const printResumeTraffic = ({ doc, tab, group, x, y, xb = 15 }) => {
   const fontSize = 8
   const text = `всего (${tab.titles[group.traffic.current]})`
-  pdf.printLeft({ doc, str: text, x: x + tab.target.x + tab.target.w, y, fontSize })
-  pdf.printLeft({ doc, str: String(group.traffic.min), x: x + tab.min.x + tab.min.w, y, fontSize })
-  pdf.printLeft({ doc, str: getTextCost(group.traffic.sum), x: x + tab.sum.x + tab.sum.w, y, fontSize })
+  const [dt, dd, wtext] = [2, 1, doc.getTextWidth(text) + 3]
+  const xLineStart = xb + tab.target.x + tab.target.w - wtext
+  const xLineEnd = xb + tab.width
+  const width = xLineEnd - xLineStart
+
+  pdf.printLine({ doc, x: xLineStart, y: y - dt, width, widthLine: 0.1, color: [124, 124, 124] })
+
+  pdf.printLeft({ doc, str: text, x: x + tab.target.x + tab.target.w, y: y + dd, fontSize })
+  pdf.printLeft({ doc, str: String(group.traffic.min), x: x + tab.min.x + tab.min.w, y: y + dd, fontSize })
+  pdf.printLeft({ doc, str: getTextCost(group.traffic.sum), x: x + tab.sum.x + tab.sum.w, y: y + dd, fontSize })
 
   group.resetTraffic()
 }
