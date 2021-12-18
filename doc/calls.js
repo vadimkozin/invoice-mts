@@ -2,6 +2,7 @@ import { jsPDF } from 'jspdf'
 import * as pdf from './pdf-lib.js'
 import * as utils from '../lib/utils.js'
 import * as constant from '../lib/constant.js'
+import { Pager } from './pager.js'
 
 /*
 const ICall = {
@@ -35,21 +36,21 @@ export const createCalls = ({ data, nameFile, period, custName, custId }) => {
   const tab = {
     titles: { MG: 'междугородняя/международная связь', VZ: 'внутризоновая связь' },
     width: 154, // ширина
-    dy: 5, // смещение между строками по Y
+    height: 270, // высота
+    // dy: 5, // смещение между строками по Y
     dy2: 8, // смещение для разделов
     // поля:
-    abonent: { name: 'Абонент', w: 20, x: 0 },
+    abonent: { name: 'Абонент', w: 20, x: 0, isShort: true },
     date: { name: 'Дата', w: 22, x: 20, isDate: true },
     number: { name: 'Номер', w: 28, x: 42 },
     code: { name: 'Код', w: 18, x: 70 },
-    target: { name: 'Направление', w: 36, x: 88 },
+    target: { name: 'Направление', w: 36, x: 88, isCrop: true },
     min: { name: 'Мин', w: 8, x: 124, isRight: true },
     sum: { name: 'Сумма', w: 22, x: 132, isRight: true, isCurrency: true },
     // колонки (названия из data)
     fields: ['abonent', 'date', 'number', 'code', 'target', 'min', 'sum'],
   }
   const grey = [214, 214, 214]
-  const printPageNumber = nextPage()
 
   // поля группировки
   const group = {
@@ -88,99 +89,105 @@ export const createCalls = ({ data, nameFile, period, custName, custId }) => {
     },
   }
 
-  // console.log(nameFile)
+  console.log(nameFile)
 
   const doc = new jsPDF({ putOnlyUsedFonts: true })
   const bold = 'PT_Sans-Web-Bold'
   const regular = 'PT_Sans-Web-Regular'
   doc.addFont('./fonts/PT_Sans-Web-Regular.ttf', regular, 'normal')
   doc.addFont('./fonts/PT_Sans-Web-Bold.ttf', bold, 'normal')
-  doc.setFont('PT_Sans-Web-Regular')
+  doc.setFont(regular)
 
-  let y = yb
+  const pager = new Pager({ heightPage: tab.height, startY: yb, stepY: 4 })
+  pager.on('newpage', () => {
+    printFooter({ doc, x: xb, y: yb + tab.height, widthPage: tab.width, page: pager.page - 1, color: grey })
+
+    doc.addPage()
+
+    printHeaderColumns({ doc, tab, fields: tab.fields, x: xb, y: pager.y, fontName: bold })
+    pager.next(2)
+
+    pdf.printLine({ doc, x: xb, y: pager.y, width: tab.width, widthLine: 0.5, color: grey })
+
+    pager.next()
+    doc.setFont(regular)
+  })
 
   /// (1) Header
   const [header, heightHeader] = getHeader({ doc, period, custName, custId, fontSize: 10 })
-  pdf.printText({ doc, text: header, x: xb, y, fontSize: 10 })
+  pdf.printText({ doc, text: header, x: xb, y: pager.y, fontSize: 10 })
 
-  y += heightHeader + 7
+  pager.next(heightHeader + 7)
 
   /// (2) Названия колонок
-  printHeaderColumns({ doc, tab, fields: tab.fields, x: xb, y, fontName: bold })
+  printHeaderColumns({ doc, tab, fields: tab.fields, x: xb, y: pager.y, fontName: bold })
 
   doc.setFont(regular)
 
-  y += 2
+  pager.next(2)
   /// (2a) Линия под названиями колонок
-  pdf.printLine({ doc, x: xb, y, width: tab.width, widthLine: 0.5, color: grey })
+  pdf.printLine({ doc, x: xb, y: pager.y, width: tab.width, widthLine: 0.5, color: grey })
 
-  if (custId == 1212) {
-    console.log(data)
-  }
-
-  y += 4
+  pager.next(4)
 
   /// (3) Вызовы
   data.forEach((d, index) => {
-    // итоги
-    if (group.abonent.current != d.abonent && index > 0) {
-      printResumeAbonent({ doc, tab, group, x: xb, y })
-      y += tab.dy2
+    // итоги по абонентскому номеру
+    if (
+      index > 0 &&
+      (group.abonent.current != d.abonent || (group.abonent.current == d.abonent && group.traffic.current != d.traffic))
+    ) {
+      printResumeAbonent({ doc, tab, group, x: xb, y: pager.y })
+      pager.next(tab.dy2)
     }
+
+    // итоги по трафику (МГ | ВЗ)
     if (group.traffic.current != d.traffic && index > 0) {
-      printResumeTraffic({ doc, tab, group, x: xb, y })
-      y += tab.dy
+      printResumeTraffic({ doc, tab, group, x: xb, y: pager.y })
+      pager.next()
     }
 
     // заголовки МГ / ВЗ
     if (group.traffic.current != d.traffic) {
-      y += 2
-      pdf.printText({ doc, text: tab.titles[d.traffic], x: xb, y, fontSize: 9, fontName: bold })
+      pager.next(2)
+      pdf.printText({ doc, text: tab.titles[d.traffic], x: xb, y: pager.y, fontSize: 9, fontName: bold })
       group.resetTraffic()
-      y += tab.dy
+      pager.next()
       doc.setFont(regular)
     }
 
     // инфо по вызову
-    printOneCall({ doc, data: d, tab, fields: tab.fields, x: xb, y })
-    y += tab.dy
-
+    printOneCall({ doc, data: d, tab, fields: tab.fields, x: xb, y: pager.y })
+    pager.next()
     group.addTraffic(d)
     group.addAbonent(d)
     group.addTotal(d)
   })
 
   if (group.abonent.current) {
-    printResumeAbonent({ doc, tab, group, x: xb, y })
-    y += tab.dy2
+    printResumeAbonent({ doc, tab, group, x: xb, y: pager.y })
+    pager.next(tab.dy2)
   }
   if (group.traffic.current) {
-    printResumeTraffic({ doc, tab, group, x: xb, y })
-    y += tab.dy2
+    printResumeTraffic({ doc, tab, group, x: xb, y: pager.y })
+    pager.next(tab.dy2)
   }
   if (group.total.sum) {
-    pdf.printLine({ doc, x: xb, y, width: tab.width, widthLine: 0.5, color: grey })
-    y += 4
-    printResumeTotal({ doc, tab, group, x: xb, y })
-    y += tab.dy2
+    pdf.printLine({ doc, x: xb, y: pager.y, width: tab.width, widthLine: 0.5, color: grey })
+    pager.next(4)
+    printResumeTotal({ doc, tab, group, x: xb, y: pager.y })
+    pager.next(tab.dy2)
   }
 
-  console.log(`y:`, y)
-  y = printFooter({ doc, x: xb, y })
+  // printLastBlock({ doc, x: xb, y: pager.y })
 
-  console.log(`y:`, y)
-
-  printPageNumber({ doc, x: xb, y, widthPage: tab.width })
-
-  if (y > 280) {
-    doc.addPage()
-    doc.text('Do you like that?', 20, 20)
-  }
+  printFooter({ doc, x: xb, y: yb + tab.height, widthPage: tab.width, page: pager.page, color: grey })
 
   doc.save(nameFile)
 }
 
-/// (4) вспомогатьные функции
+// -----------------------------------------------------------------
+/// (4) функции
 const getHeader = ({ doc, period, custName, custId, fontSize }) => {
   const header = []
   const [year, month] = period.split('_') // 2021_12
@@ -197,9 +204,8 @@ const getHeader = ({ doc, period, custName, custId, fontSize }) => {
 }
 
 const printResumeAbonent = ({ doc, tab, group, x, y }) => {
-  const fontSize = 7
-  console.log(`group.abonent:`, group.abonent)
-  const abonentTotal = `тел: ${group.abonent.current}, всего разговоров: ${group.abonent.calls}`
+  const fontSize = 8
+  const abonentTotal = `тел: ${createShort(group.abonent.current)}, всего разговоров: ${group.abonent.calls}`
   pdf.printText({ doc, text: abonentTotal, x, y, fontSize })
   pdf.printLeft({ doc, str: String(group.abonent.min), x: x + tab.min.x + tab.min.w, y, fontSize })
   pdf.printLeft({ doc, str: getTextCost(group.abonent.sum), x: x + tab.sum.x + tab.sum.w, y, fontSize })
@@ -208,8 +214,7 @@ const printResumeAbonent = ({ doc, tab, group, x, y }) => {
 }
 
 const printResumeTraffic = ({ doc, tab, group, x, y }) => {
-  const fontSize = 7
-  console.log(`group.traffic:`, group.traffic)
+  const fontSize = 8
   const text = `всего (${tab.titles[group.traffic.current]})`
   pdf.printLeft({ doc, str: text, x: x + tab.target.x + tab.target.w, y, fontSize })
   pdf.printLeft({ doc, str: String(group.traffic.min), x: x + tab.min.x + tab.min.w, y, fontSize })
@@ -219,10 +224,7 @@ const printResumeTraffic = ({ doc, tab, group, x, y }) => {
 }
 
 const printResumeTotal = ({ doc, tab, group, x, y }) => {
-  const fontSize = 8
-  console.log(`group.total:`, group.total)
-  // const trafTotal = `calls: ${group.total.calls}: мин: ${group.total.min}, сумма: ${group.total.sum.toFixed(2)}`
-  // pdf.printText({ doc, text: trafTotal, x, y, fontSize: 9 })
+  const fontSize = 9
 
   pdf.printLeft({ doc, str: 'Итого:', x: x + tab.target.x + tab.target.w, y, fontSize })
   pdf.printLeft({ doc, str: String(group.total.min), x: x + tab.min.x + tab.min.w, y, fontSize })
@@ -249,12 +251,14 @@ const printHeaderColumns = ({ doc, tab, fields, x, y, fontName }) => {
 }
 
 const printOneCall = ({ doc, data, tab, fields, x, y }) => {
-  const fontSize = 7
+  const fontSize = 8
 
   fields.forEach((field) => {
     const f = tab[field]
     let value = tab[field].isCurrency ? getTextCost(data[field]) : String(data[field])
     value = tab[field].isDate ? getDate(value) : value
+    value = tab[field].isCrop ? cropString({ doc, value, widthMax: tab[field].w - 1, fontSize }) : value
+    value = tab[field].isShort ? createShort(value) : value
 
     if (tab[field].isRight) {
       pdf.printLeft({ doc, str: value, x: x + f.x + f.w, y, fontSize })
@@ -262,6 +266,36 @@ const printOneCall = ({ doc, data, tab, fields, x, y }) => {
       pdf.printText({ doc, text: value, x: x + f.x, y, fontSize })
     }
   })
+}
+
+// сокращение номера 74951234567 -> 1234567
+const createShort = (value) => {
+  const re = /^(7|8)49(5|9)\d{7}$/
+  return re.test(value) ? value.slice(4) : value
+}
+
+// обрезка строки, если она шире выделенной области
+const cropString = ({ doc, value, widthMax, fontSize }) => {
+  let str = String(value)
+  doc.setFontSize(fontSize)
+
+  let widthValue = doc.getTextWidth(value)
+
+  if (widthValue <= widthMax) {
+    return value
+  }
+
+  let i = 0
+  while (widthValue > widthMax) {
+    i++
+    str = value.slice(0, -i)
+    widthValue = doc.getTextWidth(str)
+    if (i > 100) {
+      break
+    }
+  }
+
+  return `${str}...`
 }
 
 // 2021-11-03 12:36  -> 03-11-2021 12:36
@@ -272,7 +306,7 @@ const getDate = (date) => {
   return `${d}-${m}-${y} ${time}`
 }
 
-const printFooter = ({ doc, x, y }) => {
+const printLastBlock = ({ doc, x, y }) => {
   const texts = [
     `Внимание!`,
     `С 01-04-2009 детальная расшифровка соединений МГ и МН связи будет`,
@@ -290,11 +324,7 @@ const printFooter = ({ doc, x, y }) => {
   return y + offset // current Y
 }
 
-const nextPage = () => {
-  let page = 1
-  return ({ doc, x, y, widthPage }) => {
-    pdf.printLeft({ doc, str: `page ${page++}`, x: x + widthPage, y, fontSize: 7 })
-    console.log(`page: ${page}`)
-    return page
-  }
+const printFooter = ({ doc, x, y, widthPage, page = 0, color = [0, 0, 0] }) => {
+  pdf.printLine({ doc, x, y, width: widthPage, widthLine: 0.2, color })
+  pdf.printLeft({ doc, str: `page ${page}`, x: x + widthPage, y: y + 3, fontSize: 7 })
 }
