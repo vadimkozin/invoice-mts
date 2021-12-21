@@ -53,6 +53,10 @@ async function mainBase(period) {
   const book = await base.getBook(period)
   const customersId = ut.getCustomersId(book)
   const customers = await base.getCustomers(customersId)
+  const [ok, errors] = base.isCustomersValid(customers)
+  if (!ok) {
+    errors.forEach((err) => log(`warning: ${err}`, true))
+  }
   const services = await base.getServices(period)
 
   const bookf = await base.getBookFiz(period)

@@ -18,6 +18,8 @@ export const createAct = (data, nameFile) => {
     customer: 0, // -- Заказчика
   }
 
+  // console.log(`data:`, data)
+
   const [xb, yb] = [15, 15] // точка отсчёта
 
   console.log(nameFile)
