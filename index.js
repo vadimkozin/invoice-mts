@@ -8,6 +8,7 @@ import * as base from './lib/base.js'
 import * as ut from './lib/utils.js'
 import * as file from './lib/file.js'
 import { Document } from './lib/document.js'
+import * as arh from './lib/arhiver.js'
 
 const opts = minimist(process.argv.slice(2), {
   alias: {
@@ -109,6 +110,12 @@ async function mainBase(period) {
     result = await doc.createDetailsFiz()
     resume('detail fiz', result)
   }
+
+  // сжимаем результат
+  const storage = `${pathResult}/${period}` // ../result/2021_12
+  const fileZip = `${pathResult}/${period}_mts.zip` // ../result/2021_12_mts.zip
+  const { bytes } = await arh.compressDirectory(`${storage}/`, fileZip, log)
+  log(`compress: ${path.basename(fileZip)}, ${ut.bytesToMb(bytes)} mb`, true)
 }
 
 function resume(what, result) {
