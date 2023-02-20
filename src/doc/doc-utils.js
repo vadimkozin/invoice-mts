@@ -1,4 +1,4 @@
-import * as utils from '../utils.js'
+import * as utils from '../lib/utils.js'
 
 export const getTextContractPeriod = (contract) => {
   const [dogDate, period1, period2] = [

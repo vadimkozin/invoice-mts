@@ -2,13 +2,13 @@ import 'dotenv/config'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import minimist from 'minimist'
-import { Logging } from './src/logging.js'
-import { help } from './src/help.js'
-import * as base from './src/base.js'
-import * as ut from './src/utils.js'
-import * as file from './src/file.js'
-import { Document } from './src/document.js'
-import * as arh from './src/arhiver.js'
+import { Logging } from './lib/logging.js'
+import { help } from './lib/help.js'
+import * as base from './lib/base.js'
+import * as ut from './lib/utils.js'
+import * as file from './lib/file.js'
+import { Document } from './lib/document.js'
+import * as arh from './lib/arhiver.js'
 
 const opts = minimist(process.argv.slice(2), {
   alias: {
@@ -26,7 +26,7 @@ const opts = minimist(process.argv.slice(2), {
   },
 })
 
-global.appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)))
+global.appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../')
 const fileLog = `${appRoot}/log/invoice-rss.log`
 const pathSource = `${appRoot}/source`
 const pathResult = `${appRoot}/result`
