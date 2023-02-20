@@ -2,13 +2,13 @@ import 'dotenv/config'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import minimist from 'minimist'
-import { Logging } from './lib/logging.js'
-import { help } from './lib/help.js'
-import * as base from './lib/base.js'
-import * as ut from './lib/utils.js'
-import * as file from './lib/file.js'
-import { Document } from './lib/document.js'
-import * as arh from './lib/arhiver.js'
+import { Logging } from './src/logging.js'
+import { help } from './src/help.js'
+import * as base from './src/base.js'
+import * as ut from './src/utils.js'
+import * as file from './src/file.js'
+import { Document } from './src/document.js'
+import * as arh from './src/arhiver.js'
 
 const opts = minimist(process.argv.slice(2), {
   alias: {
@@ -85,22 +85,22 @@ async function mainBase(period) {
   const doc = new Document({ period, book, customers, services, bookf, persons, servicesf, pathSource, pathResult })
 
   if (opts.account || opts.all) {
-    const result = await doc.createAccounts()
+    const result = doc.createAccounts()
     resume('accounts', result)
   }
 
   if (opts.act || opts.all) {
-    const result = await doc.createActs()
+    const result = doc.createActs()
     resume('acts', result)
   }
 
   if (opts.invoice || opts.all) {
-    const result = await doc.createInvoices()
+    const result = doc.createInvoices()
     resume('invoices', result)
   }
 
   if (opts.notice || opts.all) {
-    const result = await doc.createNotices()
+    const result = doc.createNotices()
     resume('notices', result)
   }
 

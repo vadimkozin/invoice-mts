@@ -1,7 +1,7 @@
 import { jsPDF } from 'jspdf'
 import * as pdf from './pdf-lib.js'
-import * as utils from '../lib/utils.js'
-import * as constant from '../lib/constant.js'
+import * as utils from '../utils.js'
+import * as constant from '../constant.js'
 import { Pager } from './pager.js'
 
 /*

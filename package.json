@@ -1,5 +1,5 @@
 {
-  "name": "invoice-rss",
+  "name": "invoice-mts",
   "version": "1.0.0",
   "description": "",
   "exports": "./index.js",
@@ -16,11 +16,16 @@
     "jspdf": "^2.4.0",
     "minimist": "^1.2.5",
     "mysql2": "^2.3.3",
-    "nodemailer": "^6.7.2",
-    "strip-bom-stream": "^5.0.0"
+    "strip-bom-stream": "^5.0.0",
+    "typescript": "^4.9.5"
   },
   "type": "module",
   "engines": {
     "node": "^12.20.0 || ^14.13.1 || >=16.0.0"
+  },
+  "devDependencies": {
+    "@types/dotenv": "^8.2.0",
+    "@types/fs-extra": "^11.0.1",
+    "@types/minimist": "^1.2.2"
   }
 }

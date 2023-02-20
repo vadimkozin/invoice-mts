@@ -1,11 +1,10 @@
 import * as pdf from './pdf-lib.js'
-import * as utils from '../lib/utils.js'
+import * as utils from '../utils.js'
 import * as du from './doc-utils.js'
 
 // data.total.cost - общая стоимость
 // data.total.nds - общая НДС
 // data.total.sum - общая стоимость с НДС
- 
 
 /// (1) Заголовок СФ
 // prettier-ignore

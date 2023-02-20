@@ -1,4 +1,4 @@
-import * as ut from '../lib/utils.js'
+import * as ut from '../utils.js'
 
 /**
  * Разбивает строку на несколько если строка шире чем widthMax
