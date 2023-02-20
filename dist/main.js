@@ -9,6 +9,8 @@ import * as ut from './lib/utils.js';
 import * as file from './lib/file.js';
 import { Document } from './lib/document.js';
 import * as arh from './lib/arhiver.js';
+import { hello } from './xml/hello.js';
+console.log(hello());
 const opts = minimist(process.argv.slice(2), {
     alias: {
         help: 'h',
@@ -26,7 +28,7 @@ const opts = minimist(process.argv.slice(2), {
 });
 global.appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../');
 const fileLog = `${appRoot}/log/invoice-rss.log`;
-const pathSource = `${appRoot}/source`;
+const pathSource = `${appRoot}/csv`;
 const pathResult = `${appRoot}/result`;
 const logging = new Logging(fileLog);
 const log = logging.add.bind(logging);

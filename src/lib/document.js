@@ -5,12 +5,12 @@ import { createAct } from '../doc/act.js'
 import { createInvoice } from '../doc/invoice.js'
 import { createNotice } from '../doc/notice.js'
 import { createCalls } from '../doc/calls.js'
-
 import { getCostInWords } from './cost-in-words.js'
 import * as constant from './constant.js'
-
 import * as base from './base.js'
 import * as file from './file.js'
+
+import { SchetFact } from '../xml/sf.js'  // new
 
 const serviceCodeToTextMap = {
   MG: 'Услуги МГ/МН телефонной связи',

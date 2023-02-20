@@ -2,7 +2,8 @@
   "compilerOptions": {
     "outDir": "./dist",
     "allowJs": true,
-    "target": "es2019"
+    "target": "es2019",
+    "moduleResolution": "Node"
   },
   "include": ["./src/**/*"]
 }
