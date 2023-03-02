@@ -4,18 +4,20 @@
   "description": "",
   "exports": "./index.js",
   "scripts": {
-    "clean": "rimraf dist/*",
     "built": "rimraf dist/* && tsc",
+    "start": "rimraf dist/* && tsc && ./run.sh",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "Vadim Kozin",
   "license": "ISC",
   "dependencies": {
     "archiver": "^5.3.0",
+    "dayjs": "^1.11.7",
     "dotenv": "^10.0.0",
     "fast-csv": "^4.3.6",
     "fast-xml-parser": "^4.1.2",
     "fs-extra": "^11.1.0",
+    "iconv-lite": "^0.6.3",
     "jspdf": "^2.4.0",
     "minimist": "^1.2.5",
     "mysql2": "^2.3.3",

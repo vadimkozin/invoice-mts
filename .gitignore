@@ -6,7 +6,6 @@ yarn.lock
 .DS_Store
 .env
 result/
-source/
 csv/
 log/
 tmp/

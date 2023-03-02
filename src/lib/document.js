@@ -1,5 +1,7 @@
 import { resolve } from 'node:path'
 import fs from 'fs-extra'
+import iconv from 'iconv-lite'
+import { writeFileSync } from 'node:fs'
 import { createAccount } from '../doc/account.js'
 import { createAct } from '../doc/act.js'
 import { createInvoice } from '../doc/invoice.js'
@@ -10,7 +12,7 @@ import * as constant from './constant.js'
 import * as base from './base.js'
 import * as file from './file.js'
 
-import { SchetFact } from '../xml/sf.js'  // new
+import { SchetFact } from '../xml/sf.js' // new
 
 const serviceCodeToTextMap = {
   MG: 'Услуги МГ/МН телефонной связи',
@@ -157,6 +159,91 @@ export class Document {
         result.totalSum += b.sum
       }
     })
+    return result
+  }
+
+  createInvoicesXml() {
+    const result = { totalDocuments: 0, totalSum: 0 }
+
+    // позвращает тип клиента: u | ip : (ЮЛ | ИП)
+    const getType = (name) => {
+      const markIP = ['индивидуальный', 'предприниматель', 'ип']
+      const words = name.replace(/\s+/g, ' ').trim().split(' ')
+      const isIP = words.some((w) => markIP.includes(w.toLowerCase()))
+
+      return isIP ? 'ip' : 'u'
+    }
+
+    // продавец
+    const seller = {
+      inn: constant.operatorMts.inn,
+      kpp: constant.operatorMts.kpp,
+      name: constant.operatorMts.name,
+      nameShort: constant.operatorMts.nameShort,
+      address: constant.operatorMts.address,
+      type: 'u', // мтс - ЮЛ
+    }
+
+    this.book.forEach((b) => {
+      const customer = this._getCustomer(b.cid)
+      const document = { number: `${constant.docum.prefixDocNumber}${b.account}`, date: b.date }
+      const services = this._getServicesInvoice(b.account)
+      const items = []
+
+      // услуги (товары)
+      for (const s of services) {
+        items.push({
+          servType: s.serv,
+          cost: {
+            raw: s.sum,
+            nds: s.nds,
+            full: s.vsego,
+          },
+        })
+      }
+
+      // общая сумма
+      const total = {
+        raw: b.sum,
+        nds: b.nds,
+        full: b.vsego,
+      }
+
+      // услуги (товары)
+      const data = {
+        items,
+        total,
+      }
+
+      // покупатель
+      const buyer = {
+        inn: customer.inn,
+        kpp: customer.kpp,
+        name: customer.name,
+        nameShort: customer.name,
+        address: customer.address,
+        type: getType(customer.name),
+      }
+
+      // СФ
+      const invoice = {
+        num: document.number,
+        date: document.date,
+      }
+
+      if (b.type === 'u') {
+        const sf = new SchetFact({ buyer, seller, invoice, data })
+        const { filename, xml } = sf.getXml()
+
+        const dir = this._createDirectory(this.pathResultUr, customer.alias, customer.cid)
+        const fullpath = resolve(this.pathResultUr, dir, filename)
+        writeFileSync(fullpath, iconv.encode(xml, 'win1251'))
+
+        result.totalDocuments += 1
+        result.totalSum += b.sum
+      }
+    })
+
     return result
   }
 

@@ -22,6 +22,20 @@ interface ITable {
   }
 }
 
+// ФИО для xml
+interface IFio {
+  '@@Фамилия': string
+  '@@Имя': string
+  '@@Отчество': string
+}
+
+// ФИО в чистом виде
+interface IFioRaw {
+  name: string
+  fam: string
+  ot: string
+}
+
 // Подписант : Сведения о лице, подписывающем файл обмена
 interface IPodpisant {
   '@@ОблПолн': string
@@ -31,11 +45,7 @@ interface IPodpisant {
     '@@ИННЮЛ': string
     '@@НаимОрг': string
     '@@Должн': string
-    ФИО: {
-      '@@Фамилия': string
-      '@@Имя': string
-      '@@Отчество': string
-    }
+    ФИО: IFio
   }
 }
 
@@ -64,11 +74,13 @@ interface ISvProd {
 }
 
 // СвПокуп : Сведения покупателя
+//
 interface ISvPokup {
   '@@КраткНазв': string
-  ИдСв: {
-    СвЮЛУч: { '@@НаимОрг': string; '@@ИННЮЛ': string; '@@КПП': string }
-  }
+  // ИдСв: {
+  //   СвЮЛУч: { '@@НаимОрг': string; '@@ИННЮЛ': string; '@@КПП': string }
+  // }
+  ИдСв: ISvUlUch | ISvIP
   Адрес: {
     АдрИнф: { '@@КодСтр': string; '@@АдрТекст': string }
   }
@@ -124,32 +136,19 @@ interface ICost {
   nds: number // стоимость НДС (20)
 }
 
-// данные по продукту(услуге)
-interface IProduct {
-  count: number // номер строки в таблице
-  name: string // наименование товара(услуги)
-  OKEI: string // код товара по ОКЕИ (362)
-  quantity: number // количество товаров(1)
-  cost: ICost // стоимость
-}
-
-// данные стоимости товаров(услуг)
-interface IData {
-  products: IProduct[] // список продуктов(услуг)
-  total: ICost // общая стомость
-}
-
-// одна услуга в таблице СФ
-interface IServiceItem {
+// один элемент данных ( одна услуга ) в таблице СФ
+interface IDataItem {
   servType: string
   cost: ICost
 }
 
-// список услуг в таблице СФ
-interface IServices {
-  items: IServiceItem[]
+// данные (список услуг) в таблице СФ
+interface IData {
+  items: IDataItem[]
   total: ICost
 }
+
+type TypeOrganization = 'u' | 'f' | 'ip' // ЮЛ | ФЛ | ИП
 
 // buyer and seller - покупатель и продавец
 interface Organization {
@@ -157,6 +156,27 @@ interface Organization {
   kpp: string
   name: string
   address: string
+  type: string // TypeOrganization
+}
+// СвЮЛУч: { // Сведения об организации
+//   '@@НаимОрг': this.buyer.name,
+//   '@@ИННЮЛ': this.buyer.inn,
+//   '@@КПП': this.buyer.kpp,
+
+// СвЮЛУч: Сведения о юридическом лице, состоящем на учете в налоговых органах
+interface ISvUlUch {
+  СвЮЛУч: {
+    '@@НаимОрг': string
+    '@@ИННЮЛ': string
+    '@@КПП': string
+  }
+}
+// СвИП: Сведения об индивидуальном предпринимателе (ИП)
+interface ISvIP {
+  СвИП: {
+    '@@ИННФЛ': string
+    ФИО: IFio
+  }
 }
 
 export {
@@ -171,7 +191,8 @@ export {
   IDocument,
   Organization,
   ICost,
-  IProduct,
   IData,
-  IServices,
+  ISvUlUch,
+  ISvIP,
+  IFioRaw,
 }

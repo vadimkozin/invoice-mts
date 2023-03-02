@@ -1,6 +1,7 @@
-import { nanoid } from 'nanoid/async'
+import { nanoid } from 'nanoid'
 import { XMLBuilder } from 'fast-xml-parser'
-import { mts, podpisant, parameters } from './constant'
+import { mts, podpisant, parameters } from './constant.js'
+import { date } from './date.js'
 import {
   ITable,
   IPodpisant,
@@ -12,55 +13,22 @@ import {
   IInvoice,
   IDocument,
   Organization,
-  IServices,
+  IData,
+  ISvUlUch,
+  ISvIP,
+  IFioRaw,
 } from './types-sf'
 
 // возвращает идентификатор организации : ИННКПП
-const getOrgId = (customer: Organization) => `${customer.inn}${customer.kpp}`
-
-// дополняет нулём слева до 2-х цифр
-const pad = (num: number | string, max: number = 2) =>
-  num.toString().padStart(max, '0')
-
-// возвращает текущий день в формате YYYYMMDD
-const getCurrentDay = () => {
-  const now = new Date()
-  const year = now.getFullYear()
-  const month = pad(now.getMonth() + 1)
-  const day = pad(now.getDate())
-
-  return `${year}${month}${day}`
+const getOrgId = (customer: Organization) => {
+  let orgId = customer.inn
+  if (customer.kpp) orgId += customer.kpp
+  return orgId
 }
 
-// возвращает Дату в формате dd.mm.yyyy
-const getDate = (date: Date) => {
-  const dt = new Date(date)
-  const year = dt.getFullYear()
-  const month = pad(dt.getMonth() + 1)
-  const day = pad(dt.getDate())
-
-  return `${day}.${month}.${year}`
-}
-
-// Дата формирования файла обмена в формате dd.mm.yyyy
-const getDateCreateFile = () => {
-  const now = new Date()
-  const year = now.getFullYear()
-  const month = pad(now.getMonth() + 1)
-  const day = pad(now.getDate())
-
-  return `${day}.${month}.${year}`
-}
-
-// Время формирования файла обмена HH.MM.SS
-const getTimeCreateFile = () => {
-  const now = new Date()
-  const hours = pad(now.getHours())
-  const minutes = pad(now.getMinutes())
-  const seconds = pad(now.getSeconds())
-
-  return `${hours}.${minutes}.${seconds}`
-}
+// возвращает номер документа, например, A-429
+const getNumberDoc = (number: number | string) =>
+  `${parameters.PREFIX_DOC}${number}`
 
 /*
 Возвращает название файла СФ:
@@ -74,17 +42,18 @@ ON_NSCHFDOPPR       - префикс
 20230215            - 2023 02 15 (15-02-2023) дата формирования документа
 813b05ec-abc3-4e3b-89af-0936493047f2  - уникальный id (36 символов)
 */
-const getFileName = async ({
+const getFileName = ({
   buyer,
   seller,
 }: {
   buyer: Organization
   seller: Organization
-}): Promise<string> => {
+}): string => {
   const prefix = 'ON_NSCHFDOPPR'
-  const date = getCurrentDay()
-  const uid = await nanoid(36)
-  const name = `${prefix}_${getOrgId(seller)}_${getOrgId(buyer)}_${date}_${uid}`
+  const _date = date.getCurrentDay()
+  const uid = nanoid(36)
+  // prettier-ignore
+  const name = `${prefix}_${getOrgId(buyer)}_${getOrgId(seller)}_${_date}_${uid}`
 
   return name
 }
@@ -97,36 +66,38 @@ const options = {
   suppressEmptyNode: true,
 }
 
-// СФ целиком
+// СФ
 type ISchetFact = {
   buyer: Organization
   seller: Organization
-  services: IServices
+  data: IData
   invoice: IInvoice
 }
 
 /**
  * Получение СФ в XML формате
-  used:
-  const sf = new SchetFact({ buyer: customer1, seller: mts, services, invoice })
-  const { filename, xml } = await sf.getXml()
+ * used:
+ * const sf = new SchetFact({ buyer: customer1, seller: mts, data, invoice })
+ * const { filename, xml } = await sf.getXml()
  */
 class SchetFact {
   buyer: Organization // покупатель
   seller: Organization // продавец
-  services: IServices // услуги со стоимостью
+  data: IData // услуги со стоимостью
   invoice: IInvoice // параметры СФ
+  firstrow: string // первая сторка в файле xml
 
-  constructor({ buyer, seller, services, invoice }: ISchetFact) {
+  constructor({ buyer, seller, data, invoice }: ISchetFact) {
     this.buyer = buyer
     this.seller = seller
-    this.services = services
+    this.data = data
     this.invoice = invoice
+    this.firstrow = '<?xml version="1.0" encoding="windows-1251"?>'
   }
 
   // возвращает {filename, xml}  - имя файла и СФ в xml-формате
-  async getXml(): Promise<{ filename: string; xml: string }> {
-    const filename = await getFileName({
+  getXml(): { filename: string; xml: string } {
+    const filename = getFileName({
       buyer: this.buyer,
       seller: this.seller,
     })
@@ -137,7 +108,9 @@ class SchetFact {
 
     const xml = builder.build(document)
 
-    return { filename, xml }
+    const ext = 'xml'
+
+    return { filename: `${filename}.${ext}`, xml: `${this.firstrow}\n${xml}` }
   }
 
   // возвращает СФ в формате js-объекта c названиями полей по спецификации СФ в xml (префикс @@ -означает атрибут)
@@ -151,11 +124,11 @@ class SchetFact {
         Документ: {
           '@@КНД': parameters.KND,
           '@@Функция': 'СЧФ',
-          '@@ДатаИнфПр': getDateCreateFile(),
-          '@@ВремИнфПр': getTimeCreateFile(),
+          '@@ДатаИнфПр': date.getDateCreateFile(),
+          '@@ВремИнфПр': date.getTimeCreateFile(),
           '@@НаимЭконСубСост': mts.name,
           СвСчФакт: this._getSvChetFact(),
-          ТаблСчФакт: this._getTableSf(this.services),
+          ТаблСчФакт: this._getTableSf(this.data),
           Подписант: this._getPodpisant(),
         },
       },
@@ -163,7 +136,7 @@ class SchetFact {
   }
 
   // Таблица СФ - товары(услуги) и общая стоимость
-  _getTableSf(services: IServices): ITable {
+  _getTableSf(services: IData): ITable {
     const products = services.items.map((s, i) => {
       // номера колонок по существующей бумажной СФ
       return {
@@ -192,46 +165,6 @@ class SchetFact {
     return {
       СведТов: products,
       ВсегоОпл: totalCost,
-    }
-  }
-  // Таблица СФ
-  _getTableSf___old(): ITable {
-    return {
-      СведТов: [
-        {
-          '@@НомСтр': 1,
-          '@@НаимТов': parameters.servCodeToTextMap.VZ,
-          '@@ОКЕИ_Тов': parameters.OKEI,
-          '@@КолТов': 1,
-          '@@ЦенаТов': 487.2,
-          '@@СтТовБезНДС': 487.2,
-          '@@НалСт': `${parameters.NDS_20}%`,
-          '@@СтТовУчНал': 584.64,
-          Акциз: { БезАкциз: parameters.NOAKCIZ },
-          СумНал: { СумНал: 97.44 },
-          ДопСведТов: { '@@НаимЕдИзм': parameters.OKEI_NAME },
-        },
-        {
-          '@@НомСтр': 2,
-          '@@НаимТов': parameters.servCodeToTextMap.MG,
-          '@@ОКЕИ_Тов': parameters.OKEI,
-          '@@КолТов': 1,
-          '@@ЦенаТов': 4.2,
-          '@@СтТовБезНДС': 4.2,
-          '@@НалСт': `${parameters.NDS_20}%`,
-          '@@СтТовУчНал': 5.04,
-          Акциз: { БезАкциз: parameters.NOAKCIZ },
-          СумНал: { СумНал: 0.84 },
-          ДопСведТов: { '@@НаимЕдИзм': parameters.OKEI_NAME },
-        },
-      ],
-      ВсегоОпл: {
-        '@@СтТовБезНДСВсего': 491.4,
-        '@@СтТовУчНалВсего': 589.68,
-        СумНалВсего: {
-          СумНал: 98.28,
-        },
-      },
     }
   }
 
@@ -265,7 +198,7 @@ class SchetFact {
   // Сведения о продавце ISvProd
   _getSvProd(): ISvProd {
     return {
-      '@@КраткНазв': mts.name,
+      '@@КраткНазв': mts.nameShort,
       ИдСв: {
         СвЮЛУч: {
           '@@НаимОрг': mts.name,
@@ -282,17 +215,69 @@ class SchetFact {
     }
   }
 
-  // Сведения о покупателе ISvPokup
+  // из названия ИП возвращает: {fam,name,ot}
+  _parceNameOnFio(name: string): IFioRaw {
+    const needDelete = ['индивидуальный', 'предприниматель', '(ип)', 'ип']
+    const words = name.replace(/\s+/g, ' ').trim().split(' ')
+
+    const rest = words.filter((w) => !needDelete.includes(w.toLowerCase()))
+    if (rest.length === 3) {
+      return {
+        fam: rest[0],
+        name: rest[1],
+        ot: rest[2],
+      }
+    } else {
+      return {
+        fam: rest.join(' '),
+        name: '',
+        ot: '',
+      }
+    }
+  }
+
+  // Идентификационные сведения: ИдСв
+  _getIdSv(): ISvUlUch | ISvIP {
+    const typeOrg = this.buyer.type // u | f | ip // vadim
+
+    switch (this.buyer.type) {
+      case 'ip': // Сведения об индивидуальном предпринимателе (ИП)
+        const fio = this._parceNameOnFio(this.buyer.name)
+        return {
+          СвИП: {
+            '@@ИННФЛ': this.buyer.inn,
+            ФИО: {
+              '@@Фамилия': fio.fam,
+              '@@Имя': fio.name,
+              '@@Отчество': fio.ot,
+            },
+          },
+        }
+      default: // Сведения о юридическом лице, состоящем на учете в налоговых органах
+        return {
+          СвЮЛУч: {
+            // Сведения об организации
+            '@@НаимОрг': this.buyer.name,
+            '@@ИННЮЛ': this.buyer.inn,
+            '@@КПП': this.buyer.kpp,
+          },
+        }
+    }
+  }
+
+  // Сведения о покупателе: ISvPokup
   _getSvPokup(): ISvPokup {
     return {
       '@@КраткНазв': this.buyer.name,
-      ИдСв: {
-        СвЮЛУч: {
-          '@@НаимОрг': this.buyer.name,
-          '@@ИННЮЛ': this.buyer.inn,
-          '@@КПП': this.buyer.kpp,
-        },
-      },
+      // ИдСв: {
+      //   СвЮЛУч: {
+      //     // Сведения об организации
+      //     '@@НаимОрг': this.buyer.name,
+      //     '@@ИННЮЛ': this.buyer.inn,
+      //     '@@КПП': this.buyer.kpp,
+      //   },
+      // },
+      ИдСв: this._getIdSv(),
       Адрес: {
         АдрИнф: {
           '@@КодСтр': parameters.ROSSIA,
@@ -302,20 +287,20 @@ class SchetFact {
     }
   }
 
-  // Реквизиты документа, подтверждающего отгрузку IDocPodtvOtgr
+  // Реквизиты документа, подтверждающего отгрузку: IDocPodtvOtgr
   _getDocPodtvOtgr(): IDocPodtvOtgr {
     return {
       '@@НаимДокОтгр': '-',
-      '@@НомДокОтгр': this.invoice.num,
-      '@@ДатаДокОтгр': getDate(this.invoice.date), //'31.01.2023'
+      '@@НомДокОтгр': getNumberDoc(this.invoice.num), // A-429
+      '@@ДатаДокОтгр': date.getDate(this.invoice.date), //'31.01.2023'
     }
   }
 
   // Сведения по Счёт-фактуре
   _getSvChetFact(): ISvChFact {
     return {
-      '@@НомерСчФ': this.invoice.num,
-      '@@ДатаСчФ': getDate(this.invoice.date),
+      '@@НомерСчФ': getNumberDoc(this.invoice.num),
+      '@@ДатаСчФ': date.getDate(this.invoice.date),
       '@@КодОКВ': parameters.OKB,
       СвПрод: this._getSvProd(),
       СвПокуп: this._getSvPokup(),

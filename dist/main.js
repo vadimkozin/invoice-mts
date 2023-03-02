@@ -9,8 +9,6 @@ import * as ut from './lib/utils.js';
 import * as file from './lib/file.js';
 import { Document } from './lib/document.js';
 import * as arh from './lib/arhiver.js';
-import { hello } from './xml/hello.js';
-console.log(hello());
 const opts = minimist(process.argv.slice(2), {
     alias: {
         help: 'h',
@@ -84,6 +82,8 @@ async function mainBase(period) {
     if (opts.invoice || opts.all) {
         const result = doc.createInvoices();
         resume('invoices', result);
+        const resultXml = doc.createInvoicesXml();
+        resume('invoicesXml', resultXml);
     }
     if (opts.notice || opts.all) {
         const result = doc.createNotices();
