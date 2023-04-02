@@ -98,8 +98,11 @@ async function mainBase(period) {
     const result = doc.createInvoices()
     resume('invoices', result)
 
-    const resultXml = doc.createInvoicesXml()
-    resume('invoicesXml', resultXml)
+    // const resultXml = doc.createInvoicesXml()
+    // resume('invoicesXml', resultXml)
+
+    const updXml = doc.createUpdXml()
+    resume('updXml', updXml)
   }
 
   if (opts.notice || opts.all) {

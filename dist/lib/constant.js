@@ -32,7 +32,8 @@ export const docum = {
         invoice: 'invoice',
         act: 'act',
         calls: 'calls',
-        notice: 'notice', // 2021_12_Беликов_notice.pdf
+        notice: 'notice',
+        upd: 'upd', // 2021_12_Альконт_upd.xml
     },
     phone: '+7(495)9373173',
     currencyName: 'Российский рубль, 643',

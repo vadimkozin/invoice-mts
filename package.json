@@ -4,7 +4,7 @@
   "description": "",
   "exports": "./index.js",
   "scripts": {
-    "built": "rimraf dist/* && tsc",
+    "build": "rimraf dist/* && tsc",
     "start": "rimraf dist/* && tsc && ./run.sh",
     "test": "echo \"Error: no test specified\" && exit 1"
   },

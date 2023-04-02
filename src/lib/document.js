@@ -13,6 +13,7 @@ import * as base from './base.js'
 import * as file from './file.js'
 
 import { SchetFact } from '../xml/sf.js' // new
+import { Upd } from '../xml/upd/upd.js' // new
 
 const serviceCodeToTextMap = {
   MG: 'Услуги МГ/МН телефонной связи',
@@ -247,6 +248,101 @@ export class Document {
     return result
   }
 
+  createUpdXml() {
+    const result = { totalDocuments: 0, totalSum: 0 }
+
+    // позвращает тип клиента: u | ip : (ЮЛ | ИП)
+    const getType = (name) => {
+      const markIP = ['индивидуальный', 'предприниматель', 'ип']
+      const words = name.replace(/\s+/g, ' ').trim().split(' ')
+      const isIP = words.some((w) => markIP.includes(w.toLowerCase()))
+
+      return isIP ? 'ip' : 'u'
+    }
+
+    // продавец
+    const seller = {
+      inn: constant.operatorMts.inn,
+      kpp: constant.operatorMts.kpp,
+      name: constant.operatorMts.name,
+      nameShort: constant.operatorMts.nameShort,
+      address: constant.operatorMts.address,
+      type: 'u', // мтс - ЮЛ
+    }
+
+    this.book.forEach((b) => {
+      const customer = this._getCustomer(b.cid)
+      const document = { number: `${constant.docum.prefixDocNumber}${b.account}`, date: b.date }
+      const services = this._getServicesInvoice(b.account)
+      const items = []
+
+      // услуги (товары)
+      for (const s of services) {
+        items.push({
+          servType: s.servType,
+          cost: {
+            raw: s.cost,
+            nds: s.nds,
+            full: s.sum,
+          },
+        })
+      }
+
+      // общая сумма
+      const total = {
+        raw: b.sum,
+        nds: b.nds,
+        full: b.vsego,
+      }
+
+      // услуги (товары)
+      const data = {
+        items,
+        total,
+      }
+
+      // покупатель
+      const buyer = {
+        inn: customer.inn,
+        kpp: customer.kpp,
+        name: customer.name,
+        nameShort: customer.name,
+        address: customer.address,
+        type: getType(customer.name),
+        dogovor: {
+          number: customer.dogNumber,
+          date: customer.dogDate,
+        },
+      }
+
+      // СФ
+      const invoice = {
+        num: document.number,
+        date: document.date,
+      }
+
+      if (b.type === 'u') {
+        const upd = new Upd({ buyer, seller, invoice, data })
+        const { filename, xml } = upd.getXml()
+
+        const dir = this._createDirectory(this.pathResultUr, customer.alias, customer.cid)
+
+        // utf8: 2023_02_АПСРТ_upd.xml
+        // const fullpath_ = this._getNameFile(this.period, dir, customer.alias, 'upd', 'xml')
+        // writeFileSync(fullpath_, xml)
+
+        // win1251: ON_NSCHFDOPPR_...
+        const fullpath = resolve(this.pathResultUr, dir, filename)
+        writeFileSync(fullpath, iconv.encode(xml, 'win1251'))
+
+        result.totalDocuments += 1
+        result.totalSum += b.sum
+      }
+    })
+
+    return result
+  }
+
   createNotices() {
     const result = { totalDocuments: 0, totalSum: 0 }
 
@@ -360,6 +456,7 @@ export class Document {
     const services = this.services.filter((s) => s.account == account)
     return services.map((s) => {
       return {
+        servType: s.serv,
         name: serviceCodeToTextMap[s.serv],
         quantity: 1,
         unit: 'мес.',

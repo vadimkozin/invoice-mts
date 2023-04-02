@@ -9,5 +9,5 @@ result/
 csv/
 log/
 tmp/
-built/
+dist/
 
